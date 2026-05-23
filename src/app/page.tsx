@@ -1,65 +1,114 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+
+interface Todo {
+  id: string;
+  text: string;
+  completed: boolean;
+}
 
 export default function Home() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [input, setInput] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("todos");
+    if (stored) {
+      setTodos(JSON.parse(stored));
+    }
+    setMounted(true);
+  }, []);
+
+  const persist = useCallback((next: Todo[]) => {
+    setTodos(next);
+    localStorage.setItem("todos", JSON.stringify(next));
+  }, []);
+
+  const addTodo = () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    persist([...todos, { id: crypto.randomUUID(), text: trimmed, completed: false }]);
+    setInput("");
+  };
+
+  const toggleTodo = (id: string) => {
+    persist(todos.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
+  };
+
+  const deleteTodo = (id: string) => {
+    persist(todos.filter((t) => t.id !== id));
+  };
+
+  if (!mounted) return null;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-start justify-center pt-20 px-4">
+      <div className="w-full max-w-lg">
+        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-8">To-Do List</h1>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            addTodo();
+          }}
+          className="flex gap-2 mb-6"
+        >
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Add a task..."
+            data-testid="todo-input"
+            className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="submit"
+            data-testid="add-button"
+            className="rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 transition-colors"
+          >
+            Add
+          </button>
+        </form>
+
+        {todos.length === 0 && (
+          <p className="text-zinc-400 text-center" data-testid="empty-message">
+            No tasks yet. Add one above.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        )}
+
+        <ul className="space-y-2" data-testid="todo-list">
+          {todos.map((todo) => (
+            <li
+              key={todo.id}
+              data-testid="todo-item"
+              className="flex items-center gap-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2"
+            >
+              <input
+                type="checkbox"
+                checked={todo.completed}
+                onChange={() => toggleTodo(todo.id)}
+                data-testid="todo-checkbox"
+                className="h-4 w-4 accent-blue-600"
+              />
+              <span
+                data-testid="todo-text"
+                className={`flex-1 ${todo.completed ? "line-through text-zinc-400" : "text-zinc-900 dark:text-zinc-100"}`}
+              >
+                {todo.text}
+              </span>
+              <button
+                onClick={() => deleteTodo(todo.id)}
+                data-testid="delete-button"
+                className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+              >
+                Delete
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
